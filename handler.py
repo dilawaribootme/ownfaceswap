@@ -13,6 +13,9 @@ import uuid
 import tempfile
 import socket
 import traceback
+import requests
+import io
+from PIL import Image
 
 # Time to wait between API check attempts in milliseconds
 COMFY_API_AVAILABLE_INTERVAL_MS = 50
@@ -496,6 +499,36 @@ def handler(job):
     # Extract validated data
     workflow = validated_data["workflow"]
     input_images = validated_data.get("images")
+        # -----------------------------------------------------------
+    # Auto-convert "Load Image From Url (mtb)" nodes to base64
+    # -----------------------------------------------------------
+    def image_to_base64(url):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            image = Image.open(io.BytesIO(response.content))
+            buffered = io.BytesIO()
+            image.save(buffered, format="PNG")
+            return base64.b64encode(buffered.getvalue()).decode('utf-8')
+        except Exception as e:
+            print(f"Failed to convert image from URL: {url}\nError: {e}")
+            return None
+
+    # Scan workflow for nodes that use "Load Image From Url (mtb)"
+    for node_id, node_data in workflow.items():
+        class_type = node_data.get("class_type", "")
+        if class_type.strip().lower() == "load image from url (mtb)":
+            url = node_data["inputs"].get("url")
+            print(f"Found URL in node {node_id}: {url}")
+            b64_img = image_to_base64(url)
+            if b64_img:
+                node_data["inputs"]["image"] = b64_img
+                node_data["class_type"] = "Load Image"
+                del node_data["inputs"]["url"]
+                print(f"Node {node_id}: replaced 'Load Image From Url (mtb)' with base64 image.")
+            else:
+                print(f"Node {node_id}: could not download/convert URL.")
+
 
     # Make sure that the ComfyUI HTTP API is available before proceeding
     if not check_server(
