@@ -65,17 +65,16 @@ RUN if [ "$ENABLE_PYTORCH_UPGRADE" = "true" ]; then \
 WORKDIR /comfyui
 
 # Install custom nodes required for face swap workflow
-RUN cd custom_nodes && \
-    # Install ReActorFaceSwap node
-    git clone https://github.com/Gourieff/comfyui-reactor-node.git && \
+# Install custom nodes using comfy-cli (more reliable method)
+RUN comfy --workspace /comfyui node install comfyui-reactor-node || \
+    (cd custom_nodes && git clone https://github.com/Gourieff/comfyui-reactor-node.git && \
     cd comfyui-reactor-node && \
-    uv pip install -r requirements.txt && \
-    cd .. && \
-    # Install laod image url node
-    git clone https://github.com/melMass/comfy_mtb && \
+    if [ -f requirements.txt ]; then uv pip install -r requirements.txt; fi)
+
+RUN comfy --workspace /comfyui node install comfy_mtb || \
+    (cd custom_nodes && git clone https://github.com/melMass/comfy_mtb --depth 1 && \
     cd comfy_mtb && \
-    uv pip install -r requirements.txt && \
-    cd /comfyui
+    if [ -f requirements.txt ]; then uv pip install -r requirements.txt; fi)
 
 # Support for the network volume
 ADD src/extra_model_paths.yaml ./
