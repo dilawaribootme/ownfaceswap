@@ -64,16 +64,15 @@ RUN if [ "$ENABLE_PYTORCH_UPGRADE" = "true" ]; then \
 # Change working directory to ComfyUI
 WORKDIR /comfyui
 
-# Install custom nodes required for face swap workflow
 # Install custom nodes using comfy-cli (more reliable method)
 RUN comfy --workspace /comfyui node install comfyui-reactor-node || \
     (cd custom_nodes && git clone https://github.com/Gourieff/comfyui-reactor-node.git && \
     cd comfyui-reactor-node && \
     if [ -f requirements.txt ]; then uv pip install -r requirements.txt; fi)
 
-RUN comfy --workspace /comfyui node install comfy_mtb || \
-    (cd custom_nodes && git clone https://github.com/melMass/comfy_mtb --depth 1 && \
-    cd comfy_mtb && \
+RUN comfy --workspace /comfyui node install ComfyUI_UltimateSDUpscale || \
+    (cd custom_nodes && git clone https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git --depth 1 && \
+    cd ComfyUI_UltimateSDUpscale && \
     if [ -f requirements.txt ]; then uv pip install -r requirements.txt; fi)
 
 # Support for the network volume
@@ -114,7 +113,7 @@ ARG MODEL_TYPE=flux1-dev-fp8
 WORKDIR /comfyui
 
 # Create necessary directories upfront
-RUN mkdir -p models/checkpoints models/vae models/unet models/clip models/upscale_models models/insightface models/facerestore_models
+RUN mkdir -p models/checkpoints models/vae models/unet models/clip models/upscale_models models/insightface models/facerestore_models models/ultralytics/bbox
 
 # Download existing models based on model type (keeping your original logic)
 RUN if [ "$MODEL_TYPE" = "sdxl" ]; then \
@@ -146,55 +145,42 @@ RUN if [ "$MODEL_TYPE" = "flux1-dev-fp8" ]; then \
     fi
 
 # Download face swap specific models (always downloaded regardless of MODEL_TYPE)
-# Download face swap specific models (always downloaded regardless of MODEL_TYPE)
 # Note: These downloads have fallback URLs and will warn if failed but won't stop the build
+
 # Download Absolute Reality checkpoint (try multiple sources)
-# Download Absolute Reality checkpoint
 RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
     -O models/checkpoints/absolutereality_v181.safetensors \
-RUN wget -q -O models/checkpoints/absolutereality_v181.safetensors \
     "https://civitai.com/api/download/models/132760?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
     || wget --no-verbose --timeout=30 --tries=3 \
     -O models/checkpoints/absolutereality_v181.safetensors \
     "https://huggingface.co/kayfahaarukku/AbsoluteReality_v1.8.1/resolve/main/absolutereality_v181.safetensors" \
-    https://huggingface.co/Lykon/AbsoluteReality/resolve/main/absolutereality_v181.safetensors
     || (echo "WARNING: Could not download Absolute Reality model. You'll need to add it manually." && true)
-# Download 4x upscale model
+
 # Download 4x upscale model
 RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
     -O models/upscale_models/4x_foolhardy_Remacri.pth \
-RUN wget -q -O models/upscale_models/4x_foolhardy_Remacri.pth \
     "https://huggingface.co/gemasai/4x_foolhardy_Remacri/resolve/main/4x_foolhardy_Remacri.pth" \
-    https://huggingface.co/FacehugmanIII/4x_foolhardy_Remacri/resolve/main/4x_foolhardy_Remacri.pth
     || (echo "WARNING: Could not download 4x upscale model. You'll need to add it manually." && true)
+
 # Download InsightFace model for ReActor  
-# Download InsightFace model for ReActor
 RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
     -O models/insightface/inswapper_128.onnx \
-RUN wget -q -O models/insightface/inswapper_128.onnx \
     "https://github.com/facefusion/facefusion-assets/releases/download/models/inswapper_128.onnx" \
     || wget --no-verbose --timeout=30 --tries=3 \
     -O models/insightface/inswapper_128.onnx \
     "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/inswapper_128.onnx" \
-    https://huggingface.co/deepinsight/inswapper/resolve/main/inswapper_128.onnx
     || (echo "WARNING: Could not download inswapper model. You'll need to add it manually." && true)
-# Download GFPGAN face restoration model
+
 # Download GFPGAN face restoration model
 RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
     -O models/facerestore_models/GFPGANv1.4.pth \
-RUN wget -q -O models/facerestore_models/GFPGANv1.4.pth \
     "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth" \
-    https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth
     || (echo "WARNING: Could not download GFPGAN model. You'll need to add it manually." && true)
+
 # Download detection model for ReActor (YOLOv5)
-# Download detection model for ReActor (YOLOv5)
-RUN mkdir -p models/ultralytics/bbox && \
-RUN mkdir -p models/ultralytics/bbox && \
-    wget --no-verbose --show-progress --timeout=30 --tries=3 \
+RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
     -O models/ultralytics/bbox/face_yolov5n.pt \
-    wget -q -O models/ultralytics/bbox/face_yolov5n.pt \
     "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/detection/bbox/face_yolov5n.pt" \
-    https://huggingface.co/Gourieff/ReActor/resolve/main/models/detection/bbox/face_yolov5n.pt
     || (echo "WARNING: Could not download detection model. You'll need to add it manually." && true)
 
 # Stage 3: Final image
