@@ -180,7 +180,7 @@ RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
 # Download detection model for ReActor (YOLOv5)
 RUN wget --no-verbose --show-progress --timeout=30 --tries=3 \
     -O models/ultralytics/bbox/face_yolov5n.pt \
-    "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/models/detection/bbox/face_yolov5n.pt" \
+    "https://huggingface.co/Ultralytics/YOLOv5/resolve/main/yolov5n.pt" \
     || (echo "WARNING: Could not download detection model. You'll need to add it manually." && true)
 
 # Stage 3: Final image
